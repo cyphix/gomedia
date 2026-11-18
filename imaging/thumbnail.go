@@ -37,30 +37,32 @@ func Dimensions(src io.Reader, maxPixels int64) (image.Point, error) {
 	return image.Pt(cfg.Width, cfg.Height), nil
 }
 
-// Decode checks dimensions before allocating decoded image pixels.
-func Decode(src io.ReadSeeker, maxPixels int64) (image.Image, error) {
+// Decode validates the canvas before decoding and returns the pixels and canvas
+// dimensions. A GIF's first frame can be smaller than its canvas.
+func Decode(src io.ReadSeeker, maxPixels int64) (image.Image, image.Point, error) {
 	offset, err := src.Seek(0, io.SeekCurrent)
 	if err != nil {
-		return nil, err
+		return nil, image.Point{}, err
 	}
-	if _, err := Dimensions(src, maxPixels); err != nil {
-		return nil, err
+	canvas, err := Dimensions(src, maxPixels)
+	if err != nil {
+		return nil, image.Point{}, err
 	}
 	if _, err := src.Seek(offset, io.SeekStart); err != nil {
-		return nil, err
+		return nil, image.Point{}, err
 	}
 	img, _, err := image.Decode(src)
 	if err != nil {
-		return nil, err
+		return nil, image.Point{}, err
 	}
 	size := img.Bounds().Size()
 	if size.X <= 0 || size.Y <= 0 {
-		return nil, errors.New("invalid decoded image dimensions")
+		return nil, image.Point{}, errors.New("invalid decoded image dimensions")
 	}
 	if int64(size.X) > maxPixels/int64(size.Y) {
-		return nil, ErrTooManyPixels
+		return nil, image.Point{}, ErrTooManyPixels
 	}
-	return img, nil
+	return img, canvas, nil
 }
 
 // Thumbnail holds the resized pixels and selects PNG when they have transparency.
