@@ -17,11 +17,11 @@ func TestDecodePixelLimit(t *testing.T) {
 	if err := png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 40, 30))); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := imaging.Decode(bytes.NewReader(buf.Bytes()), 1199); !errors.Is(err, imaging.ErrTooManyPixels) {
+	if _, _, err := imaging.Decode(bytes.NewReader(buf.Bytes()), 1199); !errors.Is(err, imaging.ErrTooManyPixels) {
 		t.Fatalf("Decode: %v, want pixel limit error", err)
 	}
-	img, err := imaging.Decode(bytes.NewReader(buf.Bytes()), 1200)
-	if err != nil || img.Bounds().Size() != image.Pt(40, 30) {
+	img, canvas, err := imaging.Decode(bytes.NewReader(buf.Bytes()), 1200)
+	if err != nil || img.Bounds().Size() != image.Pt(40, 30) || canvas != image.Pt(40, 30) {
 		t.Fatalf("Decode at limit: %v", err)
 	}
 }
@@ -36,9 +36,12 @@ func TestDecodeGIFWithPartialFirstFrame(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	got, err := imaging.Decode(bytes.NewReader(buf.Bytes()), 1200)
+	got, canvas, err := imaging.Decode(bytes.NewReader(buf.Bytes()), 1200)
 	if err != nil || got.Bounds() != frame.Bounds() {
 		t.Fatalf("decode partial GIF: %v", err)
+	}
+	if canvas != image.Pt(40, 30) {
+		t.Fatalf("GIF canvas = %v, want (40,30)", canvas)
 	}
 }
 
